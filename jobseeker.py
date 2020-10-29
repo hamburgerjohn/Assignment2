@@ -28,7 +28,7 @@ def send(msg): #function to send messages to jobcreator
         sys.exit(1)
 
         
-#jobs that the seeker can do?       
+#jobs that the seeker can do? ok      
 def job1():
     print("Job Description: wait for 10 seconds ya goob")
     time.sleep(10)
