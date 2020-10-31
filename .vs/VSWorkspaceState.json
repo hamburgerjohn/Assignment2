@@ -1,7 +1,8 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\Prototype_Files"
   ],
-  "SelectedNode": "\\jobSMessages.py",
+  "SelectedNode": "\\Prototype_Files\\messages.py",
   "PreviewInSolutionExplorer": false
 }

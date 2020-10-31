@@ -1,3 +1,4 @@
+# Not finished and not part of the assignment
 # Defines the messages sent between the client and host
 
 # Sent by client to signify they want a job
