@@ -2,6 +2,7 @@
 # Defines the messages sent between the client and host
 
 # Sent by client to signify they want a job
+
 class ConnMesg: 
      requestType = 1
      messageId = 0
@@ -12,14 +13,15 @@ class ConnMesg:
 # Sent by server containing job number and description
 class JobMesg:
      requestType = 2
-     jobNumber = 0
-     jobDesc = 0
      messageId = 0
+     job = ''
+     jobNumber = 0
 
-     def __init__(self, jobNumber):
+     def __init__(self, job, jobNumber):
 
           self.jobNumber = jobNumber
           self.jobDesc = "This is a job"
+          self.job = job
           self.messageId = 1
 
 # Sent by client to signal they are working on a job
@@ -53,11 +55,13 @@ class JobComp:
      requestType = 6
      jobNumber = 0
      jobResult = ''
+    # job = None
      messageId = 0
 
      def __init__(self, jobN, jobR, mesgId):
           self.jobNumber = jobN
           self.jobResult = jobR
+          #self.job = job
           self.messageId = mesgId
 
 

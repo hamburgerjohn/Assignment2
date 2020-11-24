@@ -8,7 +8,7 @@ ADDR = (SERVER,PORT)
 FORMAT = 'utf-8'
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #creates server socket
 DISCONNECT = "qerty1234" #shared disconnect message with clients
-jobAvail = [1,1,1]
+jobAvail = [1,1,1,-1]
 queueNumber = []
 portNumber = []
 
@@ -28,7 +28,8 @@ def ifsuccess(conn,addr,msg):#checks if incomming client is reporting job succes
         jobNum = a[0] - 1
 
         if msg.find(f"job {jobNum + 1}") != -1:
-            jobAvail[jobNum] = 1
+            jobAvail[jobNum] += 1
+            print(jobAvail[jobNum])
         
         return True
     
@@ -49,9 +50,21 @@ def hire(conn,addr,msg):#gives job to client
         jobAvail[b-1] = 0
 
     elif jobAvail[jobNum] == 1:
-        conn.send(f"You have been assigned job {jobNum + 1} report back plz".encode(FORMAT))
+        conn.send(f"You have been assigned job {jobNum + 1} report back plz 1".encode(FORMAT))
         jobAvail[jobNum] = 0
-  
+    
+    # For jobs that are assigned to multiple jobseekers
+    elif jobAvail[jobNum] <= -1:
+        jobAvail[jobNum] -= 1
+
+        # Waits until at least two jobseekers are trying to do job before sending
+        while(jobAvail[jobNum] >= -2):
+             time.sleep(1)
+
+        # Makes sure that first jobseeker that is wainting will be able to see that another jobseeker has joined
+        time.sleep(1.2)
+        conn.send(f"You have been assigned job {jobNum + 1} report back plz : 192.168.2.10".encode(FORMAT))
+
     else:
         conn.send("unavailable".encode(FORMAT))
         portNumber.append(addr[1])#records port number and job number 

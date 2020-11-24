@@ -3,6 +3,9 @@ import socket
 import threading
 import messages
 import pickle
+import Jobs
+import time
+import sys
 
 PORT = 6000
 SERVER = socket.gethostbyname(socket.gethostname())#gets ip
@@ -10,7 +13,7 @@ ADDR = (SERVER,PORT)
 FORMAT = 'utf-8'
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #creates server socket
 DISCONNECT = "qerty1234" #shared disconnect message with clients
-jobAvail = [1,2,3]
+jobs = [Jobs.ICMPFlood('192.168.2.10'),Jobs.ICMPFlood('192.168.2.12'),Jobs.ICMPFlood('192.168.2.120')]
 jobProg = []
 jobComp = []
 
@@ -35,20 +38,33 @@ def connect_client(conn, addr): #handles connected clients
 
 			if msg.requestType == 1:
 				try:
-					conn.sendall(pickle.dumps(messages.JobMesg(jobAvail[jobNumber])))
-				except: #if there are no jobs available
+					conn.sendall(pickle.dumps(messages.JobMesg(jobs[jobNumber],jobNumber)))
+				except Exception as e : #if there are no jobs available
+					#print(e.message)
 					conn.sendall(pickle.dumps(messages.JobFull))
 
 			elif msg.requestType == 3:
 				complete = False
 				jobNumber = msg.jobNumber
-				jobAvail.remove(jobNumber)
+				
 				jobProg.append(jobNumber)
+				if isinstance(jobs[jobNumber], Jobs.MultiJob):
+					print("Is a multipart Job")
+					jobs[jobNumber].addJobTaker(addr)
+					print("Now Wait")
+					while jobs[jobNumber].takers < 2:
+						print("Waiting")
+						time.sleep(1)
+					conn.sendall(pickle.dumps(messages.AckMesg))
+				else:
+					print("Is not a multipart Job")
+					jobs[jobNumber].setJobTaker(addr)
+					conn.sendall(pickle.dumps(messages.AckMesg))
 
 			elif msg.requestType == 4:
 				try:
 					jobNumber+=1
-					conn.sendall(pickle.dumps(messages.JobMesg(jobAvail[jobNumber])))
+					conn.sendall(pickle.dumps(messages.JobMesg(jobs[jobNumber],jobNumber)))
 				except:
 					conn.sendall(pickle.dumps(messages.JobFull))
 
@@ -63,7 +79,6 @@ def connect_client(conn, addr): #handles connected clients
 
 	except:
 		if complete == False:
-			jobAvail.insert(jobNumber-1,jobNumber)
 			jobProg.remove(jobNumber)
 		print(f"Job Seeker @ {addr} has disconnected") 
 		conn.close()      

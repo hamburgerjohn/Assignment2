@@ -3,8 +3,10 @@ import socket
 import random
 import time
 import sys
-import messages
 import pickle
+import messages
+import Jobs
+
 
 PORT = 6000
 FORMAT = 'utf-8'
@@ -27,26 +29,6 @@ except:
 
 val = 'y'
 accept = 'y'
-jobList = ["job 1", "job 2", "job 3"]
-
-        
-#jobs that the seeker can do? ok      
-def job1():
-    print("Job Description: wait for 10 seconds ya goob")
-    time.sleep(10)
-    return "job 1 Completed Successfully :)"
-
-def job2():
-    print("Job Description: sort a string")
-    msg = "wow dude"
-    sorted_number = sorted(msg)
-    return f"job 2 Completed...\nOriginal String: [{msg}] Numbers are now sorted Successfully: {sorted_number}"
-
-def job3():
-    print("Job Description: wait 20 seconds")
-    time.sleep(20)
-    return "job 3 Completed Successfully"
-
 
 # Client's interaction with the server
 while val == 'y':
@@ -75,19 +57,17 @@ while val == 'y':
           accept = input(f"Do you want to work on job {msg.jobNumber}? y/n")
 
      mesgnum+=1
+     jobTaken = msg
      client.sendall(pickle.dumps(messages.AccJob(msg.jobNumber, clientId+mesgnum)))
+     msg = pickle.loads(client.recv(1024))
 
-     # Determines what job is done
-     if msg.jobNumber == 1:
-          result = job1()
-     elif msg.jobNumber == 2:
-          result = job2()
-     elif msg.jobNumber == 3:
-          result = job3()
+     if msg.requestType == 5:
+          # Determines what job is done
+          jobTaken.job.doJob()
 
      mesgnum+=1
-     client.sendall(pickle.dumps(messages.JobComp(msg.jobNumber,result,clientId+mesgnum)))
-     msg = pickle.loads(client.recv(1024))
+     client.sendall(pickle.dumps(messages.JobComp(jobTaken.jobNumber,jobTaken.job,clientId+mesgnum)))
+     msg = pickle.loads(client.recv(2048))
 
      # checks for acknowledgement message
      if msg.requestType == 5:
