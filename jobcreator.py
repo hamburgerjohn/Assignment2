@@ -1,127 +1,120 @@
 import socket 
 import threading
 import time
+import sys
+import pickle
+import random
+import struct
 
 PORT = 6000
-SERVER = socket.gethostbyname(socket.gethostname())#gets ip
+SERVER = socket.gethostbyname(socket.gethostname()) # Get IP
 ADDR = (SERVER,PORT)
-FORMAT = 'utf-8'
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #creates server socket
-DISCONNECT = "qerty1234" #shared disconnect message with clients
-jobAvail = [1,1,1]
-queueNumber = []
-portNumber = []
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server socket
+iplist = [ "192.168.1.6", "www.google.ca", "www.uwindsor.ca", "www.minecraft.net" ]
+multijobqueue = [0,0]
 
-try: #checks if port is being used 
+# --- Shared Messages ---
+
+DISCONNECT =        "disconnect"
+JOB_REQUEST =       "jobrequest"
+JOB_REPORT =        "jobreport"
+JOB_COMPLETE =      "completed"
+JOB_INCOMPLETE =    "incomplete"
+JOB_ASSIGNMENT =    "assignment"
+JOB_SUCCESS =       "success"
+JOB_FAILURE =       "failure"
+COMPLETION_ACK =    "goodjob"
+
+# --- Port Binding ---
+
+try: # checks if port is being used 
     server.bind(ADDR)
+    print(f"Port :{PORT} bound successfully.")
 except:
-    print("Port is being used") 
+    print(f"Port :{PORT} is being used.") 
     quit()
 
+# --- Function Definitions ---
 
-    
-def ifsuccess(conn,addr,msg):#checks if incomming client is reporting job success
-    if msg.find("Successfully") != -1:
-        print(f"Job Seeker @ {addr} has completed their task")
-        conn.send("Thank you for completing your task".encode(FORMAT))
-        a = [int(i) for i in msg.split() if i.isdigit()]
-        jobNum = a[0] - 1
+def send(conn, addr, v):
+    print(f"\nSending the following message to client @ {addr}\n\t{v}\n")
+    m = pickle.dumps(v)
+    conn.send(m)
 
-        if msg.find(f"job {jobNum + 1}") != -1:
-            jobAvail[jobNum] = 1
-        
-        return True
-    
-    else:
-        print(f"Job Seeker @ {addr} is requesting {msg}")
-        return False
-            
-def hire(conn,addr,msg):#gives job to client
-    try:
-        a = [int(i) for i in msg.split() if i.isdigit()]
-        jobNum = a[0] -1
-    except:
-        pass
-    
-    b = jobQueue(conn,addr)
-    if b:
-        print(f"job has openned for jobseeker {addr}")
-        jobAvail[b-1] = 0
+def ifsuccess(conn, addr, v): # Checks if incoming client is reporting job success
+    if v[1] == JOB_COMPLETE: # Client reported success
+        print(f"Client @ {addr} has completed their task", end="")
+        if len(v) > 2:
+            print(f" with the following return value:\n\t\"{v[2]}\"")
+        send(conn, addr, [ COMPLETION_ACK ])
+    elif v[1] == JOB_INCOMPLETE:
+        print(f"Client @ {addr} has not completed their task")
+        send(conn, addr, [ COMPLETION_ACK ])
 
-    elif jobAvail[jobNum] == 1:
-        conn.send(f"You have been assigned job {jobNum + 1} report back plz".encode(FORMAT))
-        jobAvail[jobNum] = 0
-  
-    else:
-        conn.send("unavailable".encode(FORMAT))
-        portNumber.append(addr[1])#records port number and job number 
-        queueNumber.append(jobNum + 1)
+def hire(conn, addr, v): # Give job to a client
+    jobNum = random.randint(0, 2)
 
-def jobQueue(conn,addr): #waits for job to be available then offers to jobseeker
+    if jobNum == 0:
+        ip = random.choice(iplist)
+        send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ip ])
 
-    printed = False
-    trigger = False
-    try: 
-        
-        while jobAvail[queueNumber[0]-1] == 0 or trigger == False: 
-            if not printed:
-                print(f"waiting for job {queueNumber[0]} to open up for jobseeker {addr}")
-                printed = True
-        
-            index = portNumber.index(addr[1])
+    if jobNum == 1:
+        ip = socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
+        port = random.randint(0, 65535)
+        send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ip, port ])
 
-            if index < 1:
-                trigger = True
-            else:
-                time.sleep(1)
-                trigger = False
+    if jobNum == 2:
+        multijobqueue[0] += 1
+        while (multijobqueue[0] < 2):
+          time.sleep(0.5)
+        # Allows for other jobseekers to join
+        time.sleep(5)
+        ip = random.choice(iplist)
+        send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ip])
+        multijobqueue[0] = 0
 
-        printed = False
-        print(jobAvail[queueNumber[0]-1])
-        if portNumber[0] == addr[1] and jobAvail[queueNumber[0]-1] == 1:
-            conn.send(f"job {queueNumber[0]} has reopened. Do it".encode(FORMAT))
-            temp = queueNumber[0]
-            portNumber.pop(0)
-            queueNumber.pop(0)
-            return temp
-            
-    except:
-        pass
-    
-    return 0
-    
-def connect_client(conn, addr): #handles connected clients
-    print("New Job Seeker has Connected")
+def connect_client(conn, addr):
+    print(f"New connection established.")
     connected = True
-    try: #checks if client disconnected by not sending disconnect message
+    try: # Check if client disconnected by not sending disconnect message
         while connected:
-            
-            msg = conn.recv(2048).decode(FORMAT) #decodes received string from byte format to utf-8
-            
-            if msg == DISCONNECT: #checks if disconnect message was sent by client
+            m = conn.recv(2048)
+            v = pickle.loads(m)
+            print(f"Received the following message from the client @ {addr}:\n\t{v}\n")
+
+            if v[0] == DISCONNECT: # Client requested disconnect
                 connected = False
-                print(f"Job Seeker @ {addr} has disconnected") 
+                print(f"Client @ {addr} has requested disconnect.")   
                 conn.close()
-
-            else:
-                if not ifsuccess(conn,addr,msg):#checks if client completed task successfully
-                    hire(conn,addr,msg)#offers client a job
-                    
-            
-               
+                print(f"\tDisconnected.")
+                print(f"\n{threading.activeCount()-2} active connections.")
+                
+            elif v[0] == JOB_REQUEST: # Client requested job
+                print(f"Client @ {addr} is requesting a job")
+                hire(conn, addr, v)
+                
+            elif v[0] == JOB_REPORT: # Client is reporting job status
+                print(f"Client @ {addr} is reporting back")
+                ifsuccess(conn, addr, v)
     except:
-        print(f"Job Seeker @ {addr} has disconnected") 
-        conn.close()         
-         
+        print(f"Client @ {addr} has disconnected on exception.")
+        conn.close()
+        print(f"{threading.activeCount()-2} active connections.\n")
+            
 def start():
-    server.listen() #listens for connections from clients
-    print(f"Job Creator is running on address {SERVER}")
+    server.listen() # Listen for incoming connections
+    print(f"Running on address {SERVER}:{PORT}")
     while True:
-        conn, addr = server.accept() #server accepts the connection from client via 3-way handshake
-        thread = threading.Thread(target=connect_client, args=(conn,addr))#creates thread for each client, connect_client invoked by run() method 
-        thread.start()#starts thread
-        print(f"Number of Job Seekers connected {threading.activeCount()-1} ")#prints how many clients/threads are connected/alive
-    
-print("Job Creator has been activated")
-start()
+        conn, addr = server.accept(); # Server accepts the connection from the client
+        thread = threading.Thread(target=connect_client, args=(conn, addr)) # Create thread for each client, connect_client invoked by run() method
+        thread.start() # Start thread
+        print(f"\n{threading.activeCount()-2} active connections.")
 
+# --- Start ---
+
+print("Starting...")
+for i in range(0): # Just for fun
+    time.sleep(1)
+    print(".")
+print("Started.")
+start()

