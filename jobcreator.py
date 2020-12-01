@@ -12,6 +12,12 @@ ADDR = (SERVER,PORT)
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server socket
 iplist = [ "192.168.1.6", "www.google.ca", "www.uwindsor.ca", "www.minecraft.net" ]
 multijobqueue = [0,0]
+threadList=[]
+selectedThreads = []
+numOfBots = 0
+jobQueue = 0
+attackChoice = ""
+TCPTarget = ['','']
 
 # --- Shared Messages ---
 
@@ -52,7 +58,7 @@ def ifsuccess(conn, addr, v): # Checks if incoming client is reporting job succe
         send(conn, addr, [ COMPLETION_ACK ])
 
 def hire(conn, addr, v): # Give job to a client
-    jobNum = random.randint(0, 2)
+    jobNum = random.randint(0, 3)
 
     if jobNum == 0:
         ip = random.choice(iplist)
@@ -64,14 +70,32 @@ def hire(conn, addr, v): # Give job to a client
         send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ip, port ])
 
     if jobNum == 2:
+        global ICMPTarget
         multijobqueue[0] += 1
+        if(multijobqueue[0] == 1):
+             # ensures that all jobseeker recieve the same target
+             ICMPTarget = random.choice(iplist)
         while (multijobqueue[0] < 2):
-          time.sleep(0.5)
+             time.sleep(0.5)
+        # Allows for other jobseekers to join
+        time.sleep(5)
+        print("Message Sent")
+        send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ICMPTarget])
+        multijobqueue[0] = 0
+
+    if jobNum == 3:
+        global TCPTarget
+        multijobqueue[1] += 1
+        if(multijobqueue[1] == 1):
+             TCPTarget[0] = random.choice(iplist)
+             TCPTarget[1] = random.randint(0,65535)
+        while (multijobqueue[1] < 2):
+             time.sleep(0.5)
         # Allows for other jobseekers to join
         time.sleep(5)
         ip = random.choice(iplist)
-        send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ip])
-        multijobqueue[0] = 0
+        send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, TCPTarget[0], TCPTarget[1]])
+        multijobqueue[1] = 0
 
 def connect_client(conn, addr):
     print(f"New connection established.")
