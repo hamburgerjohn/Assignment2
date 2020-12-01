@@ -18,6 +18,7 @@ numOfBots = 0
 jobQueue = 0
 attackChoice = ""
 TCPTarget = ['','']
+subnets = ["192.168.1.1/24"]
 
 # --- Shared Messages ---
 

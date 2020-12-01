@@ -69,7 +69,7 @@ def job1(v):
         send([ JOB_REPORT, JOB_COMPLETE, JOB_SUCCESS ])
         
 def job2(v):
-    print(f"Working on job 3 for @ {ADDR}")
+    print(f"Working on job 2 for @ {ADDR}")
     subnet = v[2]
     print("Target Subnet: " + subnet)
     arp = ARP(pdst=subnet)
@@ -116,7 +116,7 @@ def job4(v): #TCP flood attack
 
 # extra job created for practice
 def job5(v):
-    print(f"\nWorking on job 2 for @ {ADDR}")
+    print(f"\nWorking on job 5 for @ {ADDR}")
     host = v[2]
     port = v[3]
     sport = RandShort()
