@@ -40,7 +40,6 @@ def send(v): # Function to send messages to the server
         print(f"Waiting for server @ {ADDR}\n")
         m = conn.recv(2048)
         v = pickle.loads(m)
-        print("Message recieved")
         if v[0] == JOB_ASSIGNMENT:
             print(f"Received a job assignment from server @ {ADDR}")
             if v[1] == 1:

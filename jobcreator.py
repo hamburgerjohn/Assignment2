@@ -79,7 +79,6 @@ def hire(conn, addr, v): # Give job to a client
              time.sleep(0.5)
         # Allows for other jobseekers to join
         time.sleep(5)
-        print("Message Sent")
         send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ICMPTarget])
         multijobqueue[0] = 0
 
