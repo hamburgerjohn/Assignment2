@@ -51,6 +51,8 @@ def send(v): # Function to send messages to the server
                 job3(v)
             elif v[1] == 4:
                 job4(v)
+            elif v[1] == 5:
+                job5(v)
         elif v[0] == COMPLETION_ACK:
             print(f"Server @ {ADDR} acknowledged completion\n")
         
@@ -68,27 +70,22 @@ def job1(v):
         send([ JOB_REPORT, JOB_COMPLETE, JOB_SUCCESS ])
         
 def job2(v):
-    print(f"\nWorking on job 2 for @ {ADDR}")
-    host = v[2]
-    port = v[3]
-    sport = RandShort()
-
-    print(f"Scanning {host}:{port} from :{sport}")
-
-    pkt = sr1(IP(dst=host)/TCP(sport=sport, dport=port, flags="FPU"), timeout=1, verbose=0)
-    
-    if pkt != None:
-        if pkt.haslayer(TCP):
-            if pkt[TCP].flags == 20:
-                send([ JOB_REPORT, JOB_COMPLETE, "Closed" ])
-            else:
-                print("port, TCP flag {pkt[TCP].flag|")
-        elif pkt.haslayer(ICMP):
-            send([ JOB_REPORT, JOB_COMPLETE, "ICMP resp / filtered"])
-        else:
-            send([ JOB_REPORT, JOB_COMPLETE, "Unknown resp"])
+    print(f"Working on job 3 for @ {ADDR}")
+    subnet = v[2]
+    print("Target Subnet: " + subnet)
+    arp = ARP(pdst=subnet)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    req = ether/arp
+    res = srp(req, timeout=2, verbose=0)[0]
+    IPs = []
+    for sent, rec in res:
+        IPs.append(rec.psrc)
+    if not IPs:
+        print("No live IP Addresses")
+        send([ JOB_REPORT, JOB_COMPLETE, JOB_FAILURE ])
     else:
-        send([ JOB_REPORT, JOB_COMPLETE, "Open / filtered"])
+        print("Live IP Addresses: " + str(IPs))
+        send([ JOB_REPORT, JOB_COMPLETE, JOB_SUCCESS ])
     
 def job3(v): #ICMP Flood
     print(f"ICMP attack commencing on {v[2]} for @ {ADDR}")
@@ -118,6 +115,29 @@ def job4(v): #TCP flood attack
      except:
         send([ JOB_REPORT, JOB_COMPLETE, JOB_FAILURE ]) 
 
+# extra job created for practice
+def job5(v):
+    print(f"\nWorking on job 2 for @ {ADDR}")
+    host = v[2]
+    port = v[3]
+    sport = RandShort()
+
+    print(f"Scanning {host}:{port} from :{sport}")
+
+    pkt = sr1(IP(dst=host)/TCP(sport=sport, dport=port, flags="FPU"), timeout=1, verbose=0)
+    
+    if pkt != None:
+        if pkt.haslayer(TCP):
+            if pkt[TCP].flags == 20:
+                send([ JOB_REPORT, JOB_COMPLETE, "Closed" ])
+            else:
+                print("port, TCP flag {pkt[TCP].flag|")
+        elif pkt.haslayer(ICMP):
+            send([ JOB_REPORT, JOB_COMPLETE, "ICMP resp / filtered"])
+        else:
+            send([ JOB_REPORT, JOB_COMPLETE, "Unknown resp"])
+    else:
+        send([ JOB_REPORT, JOB_COMPLETE, "Open / filtered"])
 
 # --- Start ---
 

