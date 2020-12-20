@@ -60,6 +60,8 @@ def send(v):  # Function to send messages to the server
                 job5(v)
             elif v[1] == 6:
                 job6(v)
+            elif v[1] == 7:
+                job7(v)
         elif v[0] == COMPLETION_ACK:
             print(f"Server @ {ADDR} acknowledged completion\n")
 
@@ -220,6 +222,26 @@ def job6(v):
         print(f"\nRequest timed out.\n")
         send([JOB_REPORT, JOB_COMPLETE, JOB_FAILURE, 5, target, math.inf, True])
         return
+
+def job7(v):
+    print(f"Working on job 7 for @ {ADDR}")
+    ip = v[2][0] + "/24"
+    print("Client IP address " + v[2][0])
+    print("Looking for neighbours in the same LAN for Client: " + v[2][0])
+    arp = ARP(pdst=ip)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    req = ether / arp
+    res = srp(req, timeout=2, verbose=0)[0]
+    neighbours = []
+    # Get neighbour ips and mac addresses
+    for sent, rec in res:
+        neighbours.append("IP: " + rec.psrc+ ", MAC: " + rec.hwsrc)
+    if not neighbours:
+        print("No neighbours in the same LAN ")
+        send([JOB_REPORT, JOB_COMPLETE, JOB_FAILURE])
+    else:
+        print("Neighbours in the LAN: " + str(neighbours))
+        send([JOB_REPORT, JOB_COMPLETE, JOB_SUCCESS])
 
 
 # --- Start ---

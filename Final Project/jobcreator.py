@@ -80,7 +80,7 @@ def ifsuccess(conn, addr, v):  # Checks if incoming client is reporting job succ
 
 
 def hire(conn, addr, v):  # Give job to a client
-    job_num = random.randint(0, 5)  # int(input("Which job should the client do?: ")) - 1
+    job_num = random.randint(0, 6)  # int(input("Which job should the client do?: ")) - 1
 
     if job_num == 0:    # Ping host
         ip = random.choice(iplist)
@@ -126,6 +126,8 @@ def hire(conn, addr, v):  # Give job to a client
             reachable = traceinfo[target][0]
 
         send(conn, addr, [JOB_ASSIGNMENT, job_num + 1, iplist[target]])
+    elif job_num == 6: # Spy on neighbours
+        send(conn, addr, [JOB_ASSIGNMENT, job_num+1, addr])
     else:
         print("That is not a valid job number.")
         hire(conn, addr, v)
