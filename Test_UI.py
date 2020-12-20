@@ -16,13 +16,15 @@ class Menu(tk.Frame):
      def create_widgets(self):
           self.one_to_one_label = tk.Label(self, text = "One to One Jobs")
 
-          self.one_to_one_jobs = tk.Listbox(self, height = 3, selectmode = tk.MULTIPLE, exportselection = False)
+          self.one_to_one_jobs = tk.Listbox(self, height = 5, selectmode = tk.MULTIPLE, exportselection = False)
           self.one_to_one_jobs.insert(0, 'Check if online')
           self.one_to_one_jobs.insert(1, 'Live IP addresses')
           self.one_to_one_jobs.insert(2, 'Status of port')
+          self.one_to_one_jobs.insert(3, 'Trace Route')
+          self.one_to_one_jobs.insert(4, 'Spy on Neighbours')
 
           self.one_to_many_label = tk.Label(self, text = "One to Many Jobs")
-          self.one_to_many_jobs = tk.Listbox(self, height = 2,selectmode = tk.MULTIPLE, exportselection = False)
+          self.one_to_many_jobs = tk.Listbox(self, height = 5,selectmode = tk.MULTIPLE, exportselection = False)
           self.one_to_many_jobs.insert(0, 'ICMP Flood')
           self.one_to_many_jobs.insert(1, 'TCP Flood')
           
@@ -50,6 +52,8 @@ class Menu(tk.Frame):
           for  i in range(0,len(one_jobs)):
                if(one_jobs[i] == 2):
                     one_jobs[i] = 4 
+               elif(one_jobs[i] == 3 or one_jobs[i] == 4):
+                    one_jobs[i] += 2
           many_jobs = list(self.one_to_many_jobs.curselection())
           for i in range(0, len(many_jobs)):
                many_jobs[i] += 2

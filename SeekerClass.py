@@ -43,7 +43,7 @@ class JobSeeker():
      def create_widgets(self):
           self.window = tk.Frame(self.root)
           self.label = tk.Label(self.window, text = self.conn.getsockname())
-          self.display = tk.Text(self.window, yscrollcommand = True, width = 55, height = 15)
+          self.display = tk.Text(self.window, state = 'disabled', yscrollcommand = True, width = 55, height = 15)
           self.get_job = tk.Button(self.window, text = "Request Job", command = self.request_job)
           self.quit = tk.Button(self.window, text = "Disconnect", command = self.disconnect)
 
@@ -64,11 +64,15 @@ class JobSeeker():
           self.root.destroy()
 
      def add_text(self, text):
+          self.display["state"] = 'normal'
           self.display.insert(tk.INSERT, text)
+          self.display.see('end')
+          self.display["state"] = 'disabled'
           self.root.update()
 
      def send(self, v): # Function to send messages to the server
           # Pickle the message
+          self.get_job["state"] = "disabled"
           try:
                m = pickle.dumps(v)
                self.conn.send(m)
@@ -92,8 +96,13 @@ class JobSeeker():
                               self.job4(v)
                          elif v[1] == 5:
                               self.job5(v)
+                         elif v[1] == 6:
+                              self.job6(v)
+                         elif v[1] == 7:
+                              self.job7(v)
                     elif v[0] == self.COMPLETION_ACK:
                          self.add_text("Server @ {0} acknowledged completion\n".format(self.ADDR))
+               self.get_job["state"] = "normal"
           except Exception as e:
                print(e.__class__," occured")
         
@@ -179,6 +188,92 @@ class JobSeeker():
                     self.send([ self.JOB_REPORT, self.JOB_COMPLETE, "Unknown resp\n"])
           else:
                self.send([ self.JOB_REPORT, self.JOB_COMPLETE, "Open / filtered\n"])
+
+     # Trace route
+     def job6(self, v):
+          self.add_text(f"Working on job 6 for @ {self.ADDR}")
+          target = v[2]
+          self.add_text(f"\nTarget: {target}\n")
+          p = sr1(IP(dst=target, ttl=20) / ICMP(), timeout=2, verbose=0)
+          if p is None:
+               self.add_text(f"Destination host unreachable.\n")
+               self.send([self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_FAILURE, 5, target, math.inf, False])
+               return
+
+          port = 33434
+          acctime = 0
+          found = False
+          attempts = 0
+          for i in range(1, 31):
+               self.add_text(f"\n{i:2}")
+               times = []
+               reply = None
+               ip = ""
+               for j in range(3):
+                    pkt = IP(dst=target, ttl=i) / UDP(dport=port)
+                    sendtime = time.time()
+                    reply = sr1(pkt, verbose=0, timeout=10)
+
+                    if reply is None:
+                         self.add_text(f"\t    *   ")
+                         times.append(math.inf)
+                    else:
+                         attempts = 0
+                         ip = reply.src
+                         elapsed = int(round((reply.time - sendtime) * 1000))
+                         times.append(elapsed)
+
+                         if elapsed >= 1:
+                              self.add_text(f"\t{elapsed:5} ms")
+                         else:
+                              self.add_text(f"\t <1 ms")
+
+                         if reply.type == 3:
+                              found = True
+               if reply is not None:
+                    self.add_text(f"\t{ip:15}")
+
+                    acctime += min(times)
+               else:
+                    attempts += 1
+                    self.add_text(f"\tRequest timed out.")
+
+               if attempts >= 3:
+                    break
+
+               if found is True:
+                    break
+
+          if found is True:
+               self.add_text(f"\nTrace complete.\nRoute time is {acctime} ms")
+               self.send([self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_SUCCESS, 5, target, acctime, True])
+               return
+          else:
+               self.add_text(f"\nRequest timed out.\n")
+               self.send([self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_FAILURE, 5, target, math.inf, True])
+               return
+     
+     # Spy on Neighbours
+     def job7(self, v):
+         self.add_text(f"Working on job 7 for @ {self.ADDR}")
+         ip = v[2][0] + "/24"
+         self.add_text("Client IP address " + v[2][0])
+         self.add_text("Looking for neighbours in the same LAN for Client: " + v[2][0])
+         arp = ARP(pdst=ip)
+         ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+         req = ether / arp
+         res = srp(req, timeout=2, verbose=0)[0]
+         neighbours = []
+         # Get neighbour ips and mac addresses
+         for sent, rec in res:
+             neighbours.append("IP: " + rec.psrc+ ", MAC: " + rec.hwsrc)
+         if not neighbours:
+             self.add_text("No neighbours in the same LAN ")
+             self.send([self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_FAILURE])
+         else:
+             self.add_text("Neighbours in the LAN: " + str(neighbours))
+             self.send([self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_SUCCESS])
+
 
      # --- Start ---
      def run(self):

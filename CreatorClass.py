@@ -5,7 +5,7 @@ import sys
 import pickle
 import random
 import struct
-import queue
+import math
 import tkinter as tk
 
 class JobCreator():
@@ -18,6 +18,9 @@ class JobCreator():
           self.job_list[2] = 'ICMP Flood'
           self.job_list[3] = 'TCP Flood'
           self.job_list[4] = 'Status of port'
+          self.job_list[5] = 'Trace Route'
+          self.job_list[6] = 'Spy on Neighbours'
+
           # Creates the UI of the JobCreator
           self.root = tk.Tk()
           self.jobs = jobs
@@ -28,17 +31,18 @@ class JobCreator():
           self.SERVER = socket.gethostbyname(socket.gethostname()) # Get IP
           self.ADDR = (self.SERVER,self.PORT)
           self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server socket
-          self.iplist = [ "192.168.1.6", "www.google.ca", "www.uwindsor.ca", "www.minecraft.net" ]
+          self.clients = []
+          self.traceinfo = [[True, math.inf, None], [True, math.inf, None], [True, math.inf, None], [True, math.inf, None], [True, math.inf, None]]
+          self.iplist = ["192.168.1.6", "www.google.ca", "docs.python.org", "www.minecraft.net", "cs.uwaterloo.ca"]
           self.multijobqueue = [0,0]
           self.threadList=[]
           self.selectedThreads = []
           self.numOfBots = 0
           self.jobQueue = 0
           self.attackChoice = ""
-          self.TCPTarget = ['','']
+          self.TCPTarget = ['',0]
+          self.ICMPTarget = ''
           self.subnets = ["192.168.1.1/24"]
-          self.sharedQueue = queue.Queue()
-          self.connections = 0
 
           # --- Shared Messages ---
 
@@ -59,7 +63,7 @@ class JobCreator():
               self.add_main_text(f"Port :{self.PORT} bound successfully.")
           except:
               self.add_main_text(f"Port :{self.PORT} is being used.") 
-              quit()
+              sys.exit()
 
           self.run()
           self.root.mainloop()
@@ -75,7 +79,7 @@ class JobCreator():
                     
           self.job_label = tk.Label(self.window, text = f"Jobs in Use = {job_text}")
           self.main_label = tk.Label(self.window, text = "Main Display")
-          self.main_display = tk.Text(self.window, yscrollcommand = True, width = 50)
+          self.main_display = tk.Text(self.window, state = 'disabled', yscrollcommand = True, width = 50)
           self.quit = tk.Button(self.window, text = "Disconnect", command = self.disconnect)
 
           self.window.pack()
@@ -87,12 +91,18 @@ class JobCreator():
 
      # Used to write to the main text box
      def add_main_text(self, text):
+          self.main_display['state'] = 'normal'
           self.main_display.insert(tk.INSERT, text)
+          self.main_display.see('end')
+          self.main_display['state'] = 'disabled'
           self.root.update()
 
      # Used to write to the individual text boxes
      def add_text(self, text, display):
+          display['state'] = 'normal'
           display.insert(tk.INSERT, text)
+          display.see('end')
+          display['state'] = 'disabled'
           self.root.update()
 
      def disconnect(self):
@@ -115,51 +125,66 @@ class JobCreator():
              self.send(conn, addr, [ self.COMPLETION_ACK ], display)
 
      def hire(self, conn, addr, v, display): # Give job to a client
-         jobNum = int(random.choice(self.jobs))
-         if jobNum == 0:
-             print("Sending job 1")
-             ip = random.choice(self.iplist)
-             self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, ip ], display)
-             print("Sent job 1")
+          jobNum = int(random.choice(self.jobs))
 
-         if jobNum == 1:
-             subnet = random.choice(self.subnets)
-             self.send(conn, addr, [self.JOB_ASSIGNMENT, jobNum+1, subnet], display)
+          if jobNum == 0:
+               ip = random.choice(self.iplist)
+               self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, ip ], display)
 
-         if jobNum == 2:
-             self.multijobqueue[0] += 1
-             if(self.multijobqueue[0] == 1):
-                  # ensures that all jobseeker recieve the same target
-                  self.ICMPTarget = random.choice(self.iplist)
-             while (self.multijobqueue[0] < 2):
-                  time.sleep(0.5)
-             # Allows for other jobseekers to join
-             time.sleep(5)
-             self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, self.ICMPTarget], display)
-             self.multijobqueue[0] = 0
+          elif jobNum == 1:
+               subnet = random.choice(self.subnets)
+               self.send(conn, addr, [self.JOB_ASSIGNMENT, jobNum+1, subnet], display)
 
-         if jobNum == 3:
-             self.multijobqueue[1] += 1
-             if(self.multijobqueue[1] == 1):
-                  self.TCPTarget[0] = random.choice(self.iplist)
-                  self.TCPTarget[1] = random.randint(0,65535)
-             while (self.multijobqueue[1] < 2):
-                  time.sleep(0.5)
-             # Allows for other jobseekers to join
-             time.sleep(5)
-             self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, self.TCPTarget[0], self.TCPTarget[1]], display)
-             self.multijobqueue[1] = 0
+          elif jobNum == 2:
+               self.multijobqueue[0] += 1
+               if(self.multijobqueue[0] == 1):
+                    # ensures that all jobseeker recieve the same target
+                    self.ICMPTarget = random.choice(self.iplist)
+               while (self.multijobqueue[0] < 2):
+                    time.sleep(0.5)
+               # Allows for other jobseekers to join
+               time.sleep(5)
+               self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, self.ICMPTarget], display)
+               self.multijobqueue[0] = 0
 
-         if jobNum == 4:
-             ip = socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
-             port = random.randint(0, 65535)
-             self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, ip, port ], display)
+          elif jobNum == 3:
+               self.multijobqueue[1] += 1
+               if(self.multijobqueue[1] == 1):
+                    self.TCPTarget[0] = random.choice(self.iplist)
+                    self.TCPTarget[1] = random.randint(0,65535)
+               while (self.multijobqueue[1] < 2):
+                    time.sleep(0.5)
+               # Allows for other jobseekers to join
+               time.sleep(5)
+               self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, self.TCPTarget[0], self.TCPTarget[1]], display)
+               self.multijobqueue[1] = 0
+
+          elif jobNum == 4:
+               ip = socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
+               port = random.randint(0, 65535)
+               self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, ip, port ], display)
+
+          elif jobNum == 5:  # Trace route
+               reachable = False
+               target = ""
+               while not reachable:
+                    target = random.randint(0, len(self.iplist)-1)
+                    reachable = self.traceinfo[target][0]
+
+               self.send(conn, addr, [self.JOB_ASSIGNMENT, jobNum + 1, self.iplist[target]], display)
+
+          elif jobNum == 6: # Spy on neighbours
+               self.send(conn, addr, [self.JOB_ASSIGNMENT, jobNum+1, addr], display)
+
+          else:
+               self.add_text("That is not a valid job number.")
+               self.hire(conn, addr, v)
 
 
      def connect_client(self, conn, addr):
           # Creates the label and new textbox for the newly connected Jobseeker
           display_label = tk.Label(self.window, text = f"{addr}")
-          display = tk.Text(self.window, yscrollcommand = True, width = 50)
+          display = tk.Text(self.window, state = 'disabled', yscrollcommand = True, width = 50)
           self.grid_counter[0] += 1
           if(self.grid_counter[0] > 3):
                self.grid_counter[0] = 1
@@ -177,12 +202,11 @@ class JobCreator():
                     if v[0] == self.DISCONNECT: # Client requested disconnect
                          connected = False
                          self.add_main_text(f"Client @ {addr} has requested disconnect.\n")   
-                         conn.close()
+                         self.handledisconnect(conn,addr)
                          self.add_text(f"\tDisconnected.\n", display)
                          display_label.destroy()
                          display.destroy()
-                         self.connections -= 1
-                         self.add_main_text(f"\n{self.connections} active connections.\n")
+                         self.add_main_text(f"\n{len(self.clients)} active connections.\n")
                 
                     elif v[0] == self.JOB_REQUEST: # Client requested job
                          self.add_text(f"Client @ {addr} is requesting a job\n", display)
@@ -196,21 +220,32 @@ class JobCreator():
                display_label.destroy()
                display.destroy()
                self.add_main_text(f"Client @ {addr} has disconnected on exception.\n")
-               conn.close()
-               self.connections -= 1
-               self.add_main_text(f"{self.connections} active connections.\n")
-            
+               self.handledisconnect(conn,addr)
+               self.add_main_text(f"{len(self.clients)} active connections.\n")
+     
+     def handledisconnect(self, conn, addr):
+          for x in self.traceinfo:
+               if x[1] == conn:
+                    x[1] = None
+                    x[2] = math.inf
+
+          conn.close()
+          self.clients.remove(addr)
+
      def start(self):
           self.server.listen() # Listen for incoming connections
           self.add_main_text(f"Running on address {self.SERVER}:{self.PORT}\n")
           while True:
                conn, addr = self.server.accept(); # Server accepts the connection from the client
-               thread = threading.Thread(target=self.connect_client, args=(conn, addr)) # Create thread for each client, connect_client invoked by run() method
+               self.clients.append(addr)
+
+               # Create thread for each client, connect_client invoked by run() method
+               thread = threading.Thread(target=self.connect_client, args=(conn, addr)) 
+
                # Makes it so all threads close when main thread is closed
                thread.daemon = True
                self.threadList.append([conn, addr])
-               self.connections += 1
-               self.add_main_text(f"\n{self.connections} active connections.\n")
+               self.add_main_text(f"\n{len(self.clients)} active connections.\n")
                thread.start() # Start thread
 
 
