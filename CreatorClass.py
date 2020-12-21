@@ -7,9 +7,19 @@ import random
 import struct
 import math
 import tkinter as tk
+import os
+from os import path
 
 class JobCreator():
-     def __init__(self, jobs = [0,1,2,3,4]):
+     def __init__(self, jobs = [0,1,2,3,4,5,6]):
+
+          fileNumber = 1
+
+          while(path.exists(f"Seeker{fileNumber}.log")): #removes all seeker.log files once new creator is run
+              os.remove(f"Seeker{fileNumber}.log")
+              fileNumber += 1
+
+          self.file = open("Creator.log",'w') #redirects creates file to output to
 
           # Used to map recieved job numbers to text for easier understanding
           self.job_list = {}
@@ -44,6 +54,7 @@ class JobCreator():
           self.ICMPTarget = ''
           self.subnets = ["192.168.1.1/24"]
 
+
           # --- Shared Messages ---
 
           self.DISCONNECT =        "disconnect"
@@ -61,11 +72,10 @@ class JobCreator():
           try: # checks if port is being used 
               self.server.bind(self.ADDR)
               self.add_main_text(f"Port :{self.PORT} bound successfully.")
+              self.run()
           except:
               self.add_main_text(f"Port :{self.PORT} is being used.") 
-              sys.exit()
 
-          self.run()
           self.root.mainloop()
 
      # --- Function Definitions ---
@@ -95,6 +105,8 @@ class JobCreator():
           self.main_display.insert(tk.INSERT, text)
           self.main_display.see('end')
           self.main_display['state'] = 'disabled'
+          self.file.write(text)
+          self.file.flush()
           self.root.update()
 
      # Used to write to the individual text boxes
@@ -103,6 +115,8 @@ class JobCreator():
           display.insert(tk.INSERT, text)
           display.see('end')
           display['state'] = 'disabled'
+          self.file.write(text)
+          self.file.flush()
           self.root.update()
 
      def disconnect(self):
@@ -252,9 +266,6 @@ class JobCreator():
      # --- Start ---
      def run(self):
           self.add_main_text("Starting...\n")
-          for i in range(0): # Just for fun
-              time.sleep(1)
-              print(".")
           self.add_main_text("Started.\n")
           thread = threading.Thread(target = self.start)
           # Makes it so all threads close when main thread is closed

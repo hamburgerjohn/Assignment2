@@ -30,7 +30,7 @@ class Menu(tk.Frame):
           
           self.divider = tk.Frame(self)
 
-          self.seekers = tk.Scale(self.divider, orient = tk.HORIZONTAL, from_ = 1, to = 10, label = "# of Jobseekers")
+          self.seekers = tk.Scale(self.divider, orient = tk.HORIZONTAL, from_ = 1, to = 6, label = "# of Jobseekers")
 
           self.create = tk.Button(self.divider, text = "Create test", command = self.create_test)
           self.quit = tk.Button(self.divider, text = "QUIT", fg = "red", command = self.stop_application)
@@ -66,17 +66,25 @@ class Menu(tk.Frame):
                selected_jobs = [0,1,2,3,4]
           creator_thread = threading.Thread(target = self.create_job_creator,args=[selected_jobs])
           creator_thread.start()
+          #Sleep to allow for Creator to create files
+          time.sleep(1) 
           for i in range(0,self.seekers.get()):
                seeker_thread = threading.Thread(target = self.create_job_seeker)
                seeker_thread.start()
+               #Sleep to allow for Seeker to create files
+               time.sleep(0.5) 
+
           self.stop_application()
 
      # Work on sending jobs to the job creator
      def create_job_creator(self, jobs):
           jobC = CreatorClass.JobCreator(jobs)
+          #Sleep to allow for Creator to create files
+          time.sleep(1) 
 
      def create_job_seeker(self):
           jobS = SeekerClass.JobSeeker()
+
 
 
 if __name__ == '__main__':

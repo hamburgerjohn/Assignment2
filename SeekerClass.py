@@ -6,20 +6,26 @@ import argparse
 import threading
 import tkinter as tk
 from scapy.all import *
+from os import path
 
 class JobSeeker():
      def __init__(self):
+        #  try:
+          fileNumber = 1
+          while(path.exists(f"Seeker{fileNumber}.log")): #checks if file exist
+               fileNumber += 1
+        
+          self.file = open(f"Seeker{fileNumber}.log", 'w') #redirects stdout from console to file
 
           self.PORT = 6000
           self.SERVER = socket.gethostbyname(socket.gethostname()) # Get IP
           self.ADDR = (self.SERVER, self.PORT) 
-          self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Create client socket
+          self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Create client socket   
           self.conn.connect(self.ADDR) # Connects socket to remote host
-
           self.root = tk.Tk()
-          #self.root.geometry("200x200")
           self.create_widgets()
 
+          
           self.add_text(f"Connected to server @ {self.ADDR}\n")
           self.val = "y"
           self.FLOOD_AMOUNT = 10 #FLOOD_AMOUNT * 1000 = Number of packets sent by each bot
@@ -37,6 +43,9 @@ class JobSeeker():
           self.COMPLETION_ACK =    "goodjob"
 
           self.root.mainloop()
+        #  except:
+              # self.file.write("Connection Failed")
+              # sys.exit(0)
 
      # --- Function Definitions ---
 
@@ -68,43 +77,42 @@ class JobSeeker():
           self.display.insert(tk.INSERT, text)
           self.display.see('end')
           self.display["state"] = 'disabled'
+          self.file.write(text)
+          self.file.flush()
           self.root.update()
 
      def send(self, v): # Function to send messages to the server
           # Pickle the message
           self.get_job["state"] = "disabled"
-          try:
-               m = pickle.dumps(v)
-               self.conn.send(m)
+          m = pickle.dumps(v)
+          self.conn.send(m)
 
-               if v[0] == self.DISCONNECT: 
-                    self.add_text("\nDisconnecting from server @ {}\n".format(self.ADDR))
-                    self.val = "n"
-               else: 
-                    self.add_text("\nWaiting for server @ {}\n".format(self.ADDR))
-                    m = self.conn.recv(2048)
-                    v = pickle.loads(m)
-                    if v[0] == self.JOB_ASSIGNMENT:
-                         self.add_text("Received a job assignment from server @ {}\n".format(self.ADDR))
-                         if v[1] == 1:
-                              self.job1(v)
-                         elif v[1] == 2:
-                              self.job2(v)
-                         elif v[1] == 3:
-                              self.job3(v)
-                         elif v[1] == 4:
-                              self.job4(v)
-                         elif v[1] == 5:
-                              self.job5(v)
-                         elif v[1] == 6:
-                              self.job6(v)
-                         elif v[1] == 7:
-                              self.job7(v)
-                    elif v[0] == self.COMPLETION_ACK:
-                         self.add_text("Server @ {0} acknowledged completion\n".format(self.ADDR))
-               self.get_job["state"] = "normal"
-          except Exception as e:
-               print(e.__class__," occured")
+          if v[0] == self.DISCONNECT: 
+               self.add_text("\nDisconnecting from server @ {}\n".format(self.ADDR))
+               self.val = "n"
+          else: 
+               self.add_text("\nWaiting for server @ {}\n".format(self.ADDR))
+               m = self.conn.recv(2048)
+               v = pickle.loads(m)
+               if v[0] == self.JOB_ASSIGNMENT:
+                    self.add_text("Received a job assignment from server @ {}\n".format(self.ADDR))
+                    if v[1] == 1:
+                         self.job1(v)
+                    elif v[1] == 2:
+                         self.job2(v)
+                    elif v[1] == 3:
+                         self.job3(v)
+                    elif v[1] == 4:
+                         self.job4(v)
+                    elif v[1] == 5:
+                         self.job5(v)
+                    elif v[1] == 6:
+                         self.job6(v)
+                    elif v[1] == 7:
+                         self.job7(v)
+               elif v[0] == self.COMPLETION_ACK:
+                    self.add_text("Server @ {0} acknowledged completion\n".format(self.ADDR))
+          self.get_job["state"] = "normal"
         
      def job1(self, v):
           self.add_text("\nWorking on job 1 for @ {0}\n".format(self.ADDR))
@@ -273,20 +281,6 @@ class JobSeeker():
          else:
              self.add_text("Neighbours in the LAN: " + str(neighbours))
              self.send([self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_SUCCESS])
-
-
-     # --- Start ---
-     def run(self):
-          try:
-              while True:
-                  self.val = input("Would you like a job? (y/n): ")
-                  if self.val == "y":
-                      self.send([ self.JOB_REQUEST ])
-                  else:
-                      self.send([ self.DISCONNECT ])
-                      sys.exit(0)
-          except:
-              sys.exit(1)
 
 if __name__ == '__main__':
      jobC = JobSeeker()
