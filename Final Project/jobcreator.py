@@ -85,10 +85,12 @@ def hire(conn, addr, v):  # Give job to a client
     if job_num == 0:    # Ping host
         ip = random.choice(iplist)
         send(conn, addr, [JOB_ASSIGNMENT, job_num + 1, ip])
+
     elif job_num == 1:  # Check port status
         ip = socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
         port = random.randint(0, 65535)
         send(conn, addr, [JOB_ASSIGNMENT, job_num + 1, ip, port])
+
     elif job_num == 2:  # ICMP Flood
         global ICMPTarget
         multijobqueue[0] += 1
@@ -102,6 +104,7 @@ def hire(conn, addr, v):  # Give job to a client
         time.sleep(5)
         send(conn, addr, [JOB_ASSIGNMENT, job_num + 1, ICMPTarget])
         multijobqueue[0] = 0
+
     elif job_num == 3:  # TCP Flood
         global TCPTarget
         multijobqueue[1] += 1
@@ -115,19 +118,23 @@ def hire(conn, addr, v):  # Give job to a client
         time.sleep(5)
         send(conn, addr, [JOB_ASSIGNMENT, job_num + 1, TCPTarget[0], TCPTarget[1]])
         multijobqueue[1] = 0
+
     elif job_num == 4:      # Get live IP addresses
         subnet = random.choice(subnets)
         send(conn, addr, [JOB_ASSIGNMENT, job_num + 1, subnet])
+
     elif job_num == 5:  # Trace route
         reachable = False
         target = ""
         while not reachable:
-            target = random.randint(0, len(iplist))
+            target = random.randint(0, len(iplist)-1)
             reachable = traceinfo[target][0]
 
         send(conn, addr, [JOB_ASSIGNMENT, job_num + 1, iplist[target]])
+
     elif job_num == 6: # Spy on neighbours
         send(conn, addr, [JOB_ASSIGNMENT, job_num+1, addr])
+
     else:
         print("That is not a valid job number.")
         hire(conn, addr, v)
