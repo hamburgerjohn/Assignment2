@@ -13,6 +13,7 @@ class Menu(tk.Frame):
           self.pack()
           self.create_widgets()
 
+     # Creates the UI to allow the User to select which jobs to use and how many JobSeekers to create
      def create_widgets(self):
           self.one_to_one_label = tk.Label(self, text = "One to One Jobs")
 
@@ -43,10 +44,13 @@ class Menu(tk.Frame):
           self.seekers.pack(padx = 20, pady = 10)
           self.create.pack(padx = 20, pady = 10)
           self.quit.pack(padx = 20, pady = 10)
-
+     
+     # Destroys the UI
      def stop_application(self):
           self.master.destroy()
-
+     
+     # Reads the selected Jobs, modifies their values to fit the values used by JobCreator 
+     # and returns the array of jobs
      def add_jobs(self):
           one_jobs = list(self.one_to_one_jobs.curselection())
           for  i in range(0,len(one_jobs)):
@@ -60,6 +64,9 @@ class Menu(tk.Frame):
           all_jobs = one_jobs + many_jobs
           return all_jobs
 
+     # Creates thread to handle the creation of JobCreators and JobSeekers
+     # A small pause is made between threads so the previous one is able to 
+     # finish manipulating files
      def create_test(self):
           selected_jobs = self.add_jobs()
           if(selected_jobs == []):
@@ -76,16 +83,13 @@ class Menu(tk.Frame):
 
           self.stop_application()
 
-     # Work on sending jobs to the job creator
+     # Creates a new JobCreator
      def create_job_creator(self, jobs):
           jobC = CreatorClass.JobCreator(jobs)
-          #Sleep to allow for Creator to create files
-          time.sleep(1) 
 
+     # Creates a new JobSeeker
      def create_job_seeker(self):
           jobS = SeekerClass.JobSeeker()
-
-
 
 if __name__ == '__main__':
      root = tk.Tk()

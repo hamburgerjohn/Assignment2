@@ -11,6 +11,7 @@ import os
 from os import path
 
 class JobCreator():
+     # Binds the Socket and initializes UI and other class variables
      def __init__(self, jobs = [0,1,2,3,4,5,6]):
 
           fileNumber = 1
@@ -80,6 +81,7 @@ class JobCreator():
 
      # --- Function Definitions ---
 
+     # Creates the UI of the JobCreator
      def create_widgets(self):
           self.window = tk.Frame(self.root)
           job_text = ''
@@ -119,16 +121,19 @@ class JobCreator():
           self.file.flush()
           self.root.update()
 
+     # Destroys the UI and ends the process
      def disconnect(self):
           self.root.destroy()
           sys.exit(0)
 
+     # Sends a message to the JobSeeker
      def send(self, conn, addr, v, display):
          self.add_text(f"\nSending the following message to client @ {addr}\n\t{v}\n", display)
          m = pickle.dumps(v)
          conn.send(m)
 
-     def ifsuccess(self, conn, addr, v, display): # Checks if incoming client is reporting job success
+     # Checks if incoming client is reporting job success
+     def ifsuccess(self, conn, addr, v, display): 
          if v[1] == self.JOB_COMPLETE: # Client reported success
              self.add_text(f"Client @ {addr} has completed their task\n", display)
              if len(v) > 2:
@@ -138,17 +143,21 @@ class JobCreator():
              self.add_main_text(f"Client @ {addr} has not completed their task\n", display)
              self.send(conn, addr, [ self.COMPLETION_ACK ], display)
 
-     def hire(self, conn, addr, v, display): # Give job to a client
+     # Give job to a client
+     def hire(self, conn, addr, v, display): 
           jobNum = int(random.choice(self.jobs))
 
+          # Check if Online
           if jobNum == 0:
                ip = random.choice(self.iplist)
                self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, ip ], display)
 
+          # Live IP Addresses
           elif jobNum == 1:
                subnet = random.choice(self.subnets)
                self.send(conn, addr, [self.JOB_ASSIGNMENT, jobNum+1, subnet], display)
-
+     
+          # ICMP Flood
           elif jobNum == 2:
                self.multijobqueue[0] += 1
                if(self.multijobqueue[0] == 1):
@@ -161,6 +170,7 @@ class JobCreator():
                self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, self.ICMPTarget], display)
                self.multijobqueue[0] = 0
 
+          # TCP Flood
           elif jobNum == 3:
                self.multijobqueue[1] += 1
                if(self.multijobqueue[1] == 1):
@@ -173,12 +183,14 @@ class JobCreator():
                self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, self.TCPTarget[0], self.TCPTarget[1]], display)
                self.multijobqueue[1] = 0
 
+          # Check Port Status
           elif jobNum == 4:
                ip = socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
                port = random.randint(0, 65535)
                self.send(conn, addr, [ self.JOB_ASSIGNMENT, jobNum+1, ip, port ], display)
 
-          elif jobNum == 5:  # Trace route
+          # Trace route
+          elif jobNum == 5:  
                reachable = False
                target = ""
                while not reachable:
@@ -187,14 +199,15 @@ class JobCreator():
 
                self.send(conn, addr, [self.JOB_ASSIGNMENT, jobNum + 1, self.iplist[target]], display)
 
-          elif jobNum == 6: # Spy on neighbours
+          # Spy on neighbours
+          elif jobNum == 6:
                self.send(conn, addr, [self.JOB_ASSIGNMENT, jobNum+1, addr], display)
 
           else:
                self.add_text("That is not a valid job number.")
                self.hire(conn, addr, v)
 
-
+     # Connects the JobSeeker and monitors for their messages
      def connect_client(self, conn, addr):
           # Creates the label and new textbox for the newly connected Jobseeker
           display_label = tk.Label(self.window, text = f"{addr}")
@@ -237,15 +250,21 @@ class JobCreator():
                self.handledisconnect(conn,addr)
                self.add_main_text(f"{len(self.clients)} active connections.\n")
      
+     # Handles events when a JobSeeker disconnects
      def handledisconnect(self, conn, addr):
           for x in self.traceinfo:
                if x[1] == conn:
                     x[1] = None
                     x[2] = math.inf
+          
+          # Resets grid counter if all clients disconnected
+          if len(self.clients) == 0:
+               self.grid_counter = [0,1]
 
           conn.close()
           self.clients.remove(addr)
 
+     # Listens for connections and starts a new thread to handle the JobSeeker
      def start(self):
           self.server.listen() # Listen for incoming connections
           self.add_main_text(f"Running on address {self.SERVER}:{self.PORT}\n")
